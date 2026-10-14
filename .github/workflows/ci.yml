@@ -1,0 +1,37 @@
+name: Continuous integration
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run format:check
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npm run verify:assets
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - name: Verify project-repository asset paths
+        run: |
+          VITE_BASE_PATH=/test-project/ npm run build
+          VITE_BASE_PATH=/test-project/ npm run verify:assets
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-test-diagnostics
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
